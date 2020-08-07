@@ -1,0 +1,8 @@
+[client]
+user=root
+password='{{ mysql_root_password | mandatory }}'
+#ssl
+#This will disable loading files from the filesystem for users without file level privileges to the database.
+local-infile=0
+#Logging too much can create a performance degradation 
+#log=/var/log/mysql-logfile

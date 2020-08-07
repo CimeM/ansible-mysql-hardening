@@ -1,0 +1,32 @@
+---
+
+- name: protect my.cnf
+  file: path='{{mysql_hardening_mysql_conf_file}}' mode=0400 owner='{{mysql_cnf_owner}}' group='{{mysql_hardening_group}}' follow=yes state=file
+
+- name: Find /var/log files equal or greater than 10 megabytes ending with .old or .log.gz
+  find:
+    paths: '{{mysql_hardening_mysql_log_file}}'
+    patterns: 'mysql*'
+  register logfileList
+
+- name: ensure that error.log and mysql log directory are not world readable
+# sudo ls -l /var/log/mysql*
+  file: path='{{mysql_hardening_mysql_log_file}}' mode=0640 owner='{{mysql_cnf_owner}}' group='{{mysql_hardening_group}}' follow=yes state=file
+  with_items: "{{ logfileList.files }}"
+
+- name: ensure permissions on mysql-datadir are correct
+  file: path="{{ item.path }}" state=directory owner='{{mysql_hardening_user}}' group='{{mysql_hardening_user}}'
+
+- name: check mysql configuration-directory exists and has right permissions
+  file: path='{{mysql_hardening_mysql_confd_dir}}' state=directory owner='{{mysql_hardening_user}}' group='{{mysql_hardening_group}}' mode=0570
+
+- name: check include-dir directive is present in my.cnf
+  lineinfile: dest='{{mysql_hardening_mysql_conf_file}}' line='!includedir {{mysql_hardening_mysql_confd_dir}}' insertafter='EOF' state=present backup=yes
+  notify: restart mysql
+
+- name: apply hardening configuration
+  template: src='hardening.cnf.j2' dest='{{mysql_hardening_mysql_hardening_conf_file}}' owner='{{mysql_cnf_owner}}' group='{{mysql_hardening_group}}' mode=0460
+  notify: restart mysql
+
+- name: enable mysql
+  service: name='{{ mysql_daemon }}' enabled='{{ mysql_daemon_enabled }}'
